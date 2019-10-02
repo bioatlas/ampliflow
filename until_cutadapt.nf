@@ -218,6 +218,7 @@ if (!params.Q2imported) {
 	if (!params.RV_primer) { exit 1, "Option --RV_primer missing" }
 	if (!params.reads) { exit 1, "Option --reads missing" }
 	if (!params.trunclenF || !params.trunclenR) { exit 1, "Values for mandatory options --trunclenF and --trunclenR missing"}
+	if (!params.idxata_db || !params.species_db || !params.rdp_db) { exit 1, "\nERROR: no reference database specified for data taxonomic annotation.\nchoose between --SILVA --GTDB --UNITE --PR2, multiple choices are allowed"}
 }
 
 if (params.Q2imported && params.untilQ2import) {
@@ -639,69 +640,115 @@ if (!params.Q2imported){
 		>dada2bimeras_log 2>&1
 		"""
 	 }
-
-	//dada2idseq:
-	process dada2idseq  {
-	
-	 	publishDir "${params.outdir}/dada2idseq", mode: 'copy',
-	 		saveAs: {filename -> 
-	 		if (filename.indexOf(".tsv.gz") == -1) "logs/$filename"
-	 		else if(params.keepIntermediates) filename 
-	 		else null}
-	  
-	 	input:
-		file(dada2idseq) from ch_fastq_dada2bimeras.collect()
-	 
-	 	output:
-		file ("*.fna") into ch_fastq_dada2taxonomy
-	 	file ("dada2idseq_log") into ch_fastq_dada2taxonomy_log
-	 	script:
-	 	"""
-	 	dada2idseq.R --verbose --fnafile=unique_seqs.fna --outtable asv_table.tsv.gz \
-		dada2.cleaned.merged.tsv.gz > dada2idseq_log 2>&1
-		"""
-	 }
-
-	//dada2taxonomy:
-	process dada2taxonomy  {
-	
-	 	publishDir "${params.outdir}/dada2taxonomy", mode: 'copy',
-	 		saveAs: {filename -> 
-	 		if (filename.indexOf(".") == -1) "logs/$filename"
-	 		else if(params.keepIntermediates) filename 
-	 		else null}
-	  
-	 	input:
-		file(dada2seqid) from ch_fastq_dada2idseq.collect()
-	 
-	 	output:
-		file ("*.tsv") into ch_fastq_dada2taxonomy
-	 	file ("dada2taxonomy_log") into ch_fastq_dada2taxonomy_log
-	 	
-		when (idtaxa_db == SILVA) {
-		
-		script:
-	 	"""
-	 	dada2taxonomy.R --verbose idtaxa_rdata /data/SILVA/SILVA_SSU_r132_March2018.RData  > dada2taxonomy_log 2>&1
-		"""
-
-	 } else if (idtaxa_db == GTDB) {
-
-		script:
-	 	"""
-	 	dada2taxonomy.R --verbose idtaxa_rdata /data/GTDB/GTDB_r89-mod_June2019.RData  > dada2taxonomy_log 2>&1
-		"""
-
-	 } else if (idtaxa_db == UNITE) {
-		
-		script:
-	 	"""
-	 	dada2taxonomy.R --verbose idtaxa_rdata /data/UNITE/UNITE_v2019_July2019.RData  > dada2taxonomy_log 2>&1
-		"""
-
-	} else 
-		error "Invalid taxonomy database name: ${idtaxa_db}"
-
+/*
+*	//dada2idseq:
+*	process dada2idseq  {
+*	
+*	 	publishDir "${params.outdir}/dada2idseq", mode: 'copy',
+*	 		saveAs: {filename -> 
+*	 		if (filename.indexOf(".seqnames.tsv.gz") == -1) "logs/$filename"
+*	 		else if(params.keepIntermediates) filename 
+*	 		else null}
+*	  
+*	 	input:
+*		file(ASVtable) from ch_fastq_dada2bimeras.collect()
+*	 
+*	 	output:
+*		file ("dada2.cleaned.merged.bimeras.seqnames.tsv.gz")
+*		file ("*.fna") into ch_fastq_dada2idseq
+*	 	file ("dada2idseq_log") into ch_fastq_dada2idseq_log
+*	 	script:
+*	 	"""
+*	 	dada2idseq.R --verbose --fnafile=unique_seqs.fna --outtable dada2.cleaned.merged.bimeras.seqnames.tsv.gz \
+*		dada2.cleaned.merged.bimeras.tsv.gz > dada2idseq_log 2>&1
+*		"""
+*	 }
+*
+*	//dada2taxonomy:
+*	process dada2taxonomy  {
+*	
+*	 	publishDir "${params.outdir}/dada2taxonomy", mode: 'copy',
+*	 		saveAs: {filename -> 
+*	 		if (filename.indexOf(".") == -1) "logs/$filename"
+*	 		else if(params.keepIntermediates) filename 
+*	 		else null}
+*	  
+*	 	input:
+*		file(unique_seqs) from ch_fastq_dada2idseq.collect()
+*	 
+*	 	output:
+*		file ("*.tsv") into ch_fastq_dada2taxonomy
+*	 	file ("dada2taxonomy_log") into ch_fastq_dada2taxonomy_log
+*	 	
+*		when (idtaxa_db == SILVA) {
+*		
+*		script:
+*	 	"""
+*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/SILVA/SILVA_SSU_r132_March2018.RData unique_seqs.fna >> dada2taxonomy_log 2>&1
+*		"""
+*
+*	 } else if (idtaxa_db == GTDB) {
+*
+*		script:
+*	 	"""
+*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/GTDB/GTDB_r89-mod_June2019.RData unique_seqs.fna >> dada2taxonomy_log 2>&1
+*		"""
+*
+*	 } else if (idtaxa_db == UNITE) {
+*		
+*		script:
+*	 	"""
+*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/UNITE/UNITE_v2019_July2019.RData unique_seqs.fna >> dada2taxonomy_log 2>&1
+*		"""
+*	} else if (rdp_db == SILVA) {
+*		
+*		script:
+*	 	"""
+*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/SILVA/silva_nr_v132_train_set.fa.gz unique_seqs.fna >> dada2taxonomy_log 2>&1
+*		"""
+*
+*	 } else if (rdp_db == GTDB) {
+*
+*		script:
+*	 	"""
+*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/GTDB/GTDB_bac-arc_ssu_r86.fa.gz unique_seqs.fna >> dada2taxonomy_log 2>&1
+*		"""
+*
+*	 } else if (idtaxa_db == UNITE) {
+*		
+*		script:
+*	 	"""
+*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/UNITE/UNITE_sh_general_release_02022019.fa unique_seqs.fna >> dada2taxonomy_log 2>&1
+*		"""
+*
+*	 } else if (rdp_db == PR2_18S) {
+*		
+*		script:
+*	 	"""
+*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/PR2/pr2_version_4.12.0_18S_dada2.fasta.gz unique_seqs.fna >> dada2taxonomy_log 2>&1
+*		"""
+*	 } else if (idtaxa_db == PR2_16S) {
+*		
+*		script:
+*	 	"""
+*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/PR2/pr2_version_4.12.0_16S_dada2.fasta.gz unique_seqs.fna >> dada2taxonomy_log 2>&1
+*		"""
+*	} else if (species_db == GTDB) {
+*
+*		script:
+*	 	"""
+*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/GTDB/GTDB_dada2_assignment_species.fa.gz unique_seqs.fna >> dada2taxonomy_log 2>&1
+*		"""
+*
+*	 } else if (idtaxa_db == RDP) {
+*		
+*		script:
+*	 	"""
+*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/RDP/RefSeq-RDP_dada2_assignment_species.fa.gz unique_seqs.fna >> dada2taxonomy_log 2>&1
+*		"""
+*	} else 
+*		error "Invalid taxonomy database name: ${idtaxa_db}"
+*/
 
 
 workflow.onComplete {
