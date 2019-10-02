@@ -218,7 +218,7 @@ if (!params.Q2imported) {
 	if (!params.RV_primer) { exit 1, "Option --RV_primer missing" }
 	if (!params.reads) { exit 1, "Option --reads missing" }
 	if (!params.trunclenF || !params.trunclenR) { exit 1, "Values for mandatory options --trunclenF and --trunclenR missing"}
-	if (!params.idxata_db || !params.species_db || !params.rdp_db) { exit 1, "\nERROR: no reference database specified for data taxonomic annotation.\nchoose between --SILVA --GTDB --UNITE --PR2, multiple choices are allowed"}
+//	if (!params.idtaxa_db || !params.species_db || !params.rdp_db) { exit 1, "\nERROR: no reference database specified for data taxonomic annotation.\nchoose between --SILVA --GTDB --UNITE --PR2, multiple choices are allowed"}
 }
 
 if (params.Q2imported && params.untilQ2import) {
