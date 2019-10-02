@@ -485,7 +485,7 @@ if (!params.Q2imported){
 			"""
 			mkdir -p trimmed
 			cutadapt -g ${params.FW_primer} -G ${params.RV_primer} ${discard_untrimmed} \
-				-o trimmed/${reads[0]} -p trimmed/${reads[1]} -e ${max_error_rate}\
+				-o trimmed/${reads[0]} -p trimmed/${reads[1]} -e ${params.max_error_rate}\
 				${reads[0]} ${reads[1]} > cutadapt_log_${pair_id}.txt
 			"""
 		}
