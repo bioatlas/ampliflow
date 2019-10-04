@@ -73,6 +73,7 @@ def helpMessage() {
 	  --overab [int]                Parent overabundance multiplier, default 1. See R doc for isBimeraDenovo.
 	  --bimeraoff [str]             Handles the off bimeras. If '--oneoff', allows one off bimeras; if '--nooneoff' does not allow one off bimeras.
 	                                Default '--oneoff'. See R doc for isBimeraDenovo.
+	  --prefix                      Prefix to use for the sequence names of the ASVs taxonomy table, default 'SEQ_'
 
 	References:                     If you have trained a compatible classifier before
 	  --classifier [path/to/file]   Path to QIIME2 classifier file (typically *-classifier.qza)
@@ -146,6 +147,11 @@ params.split = "-"
 //currently only this is compatible with process make_SILVA_132_16S_classifier
 params.reference_database = "https://www.arb-silva.de/fileadmin/silva_databases/qiime/Silva_132_release.zip"
 params.dereplication = 99
+params.idtaxa = true
+params.rdp = true
+params.species = true
+params.dbpath = '/data/taxonomy/'
+params.db = 'GTDB'
 
 
 /*
@@ -560,7 +566,7 @@ if (!params.Q2imported){
 
 		script:
 		/*--filterdir: Directory for quality truncated reads, dada2filter will create it if it does not exist.
-		*See more on its settings on https://github.com/erikrikarddaniel/eemsdada2/blob/master/src/R/dada2filter#L20
+		*See more on its settings on https://github.com/erikrikarddaniel/eemisdada2/blob/master/src/R/dada2filter.R#L20
 		*/
 		//correcting --trunclen by subtracting the length of primers from the truncation position
 		trunclenR1 = params.trunclenF - params.FW_primer.size()
@@ -585,8 +591,9 @@ if (!params.Q2imported){
 	 	file(dada2filtered) from ch_fastq_dada2filter.collect()
 	 
 	 	output:
-		file ("*.rds") into ch_fastq_dada2errmodels
-	 	file ("dada2errmodels_log") into ch_fastq_dada2errmodels_log
+		file ("*.rds") into ch_dada2errmodels
+	 	file ("dada2errmodels_log") into ch_dada2errmodels_log
+
 	 	script:
 	 	"""
 	 	dada2errmodels.R --verbose --nsamples=${params.nsamples} --maxconsist=${params.maxconsist} \
@@ -606,11 +613,12 @@ if (!params.Q2imported){
 	  
 	 	input:
 	 	file(dada2filtered) from ch_fastq_dada2filter2.collect()
-		file(dada2errmodels) from ch_fastq_dada2errmodels.collect()
+		file(dada2errmodels) from ch_dada2errmodels.collect()
 	 
 	 	output:
-		file ("*merged.rds") into ch_fastq_dada2cleanNmerge
-	 	file ("dada2cleanNmerge_log") into ch_fastq_dada2cleanNmerge_log
+		file ("*merged.rds") into ch_dada2cleanNmerge
+	 	file ("dada2cleanNmerge_log") into ch_dada2cleanNmerge_log
+
 	 	script:
 	 	"""
 	 	dada2cleanNmerge.R --verbose ${params.concatenate} --filterdir=. \
@@ -628,11 +636,12 @@ if (!params.Q2imported){
 	 		else null}
 	  
 	 	input:
-		file(dada2cleanNmerged) from ch_fastq_dada2cleanNmerge.collect()
+		file(dada2cleanNmerged) from ch_dada2cleanNmerge.collect()
 	 
 	 	output:
-		file ("*bimeras.tsv.gz") into ch_fastq_dada2bimeras
-	 	file ("dada2bimeras_log") into ch_fastq_dada2bimeras_log
+		file ("*bimeras.tsv.gz") into ch_dada2bimeras
+	 	file ("dada2bimeras_log") into ch_dada2bimeras_log
+
 	 	script:
 	 	"""
 	 	dada2bimeras.R --verbose --method=${params.method} --minab=${params.minab} --overab=${params.overab} \
@@ -642,7 +651,7 @@ if (!params.Q2imported){
 	 }
 /*
 *	//dada2idseq:
-*	process dada2idseq  {
+*	process dada2idseq {
 *	
 *	 	publishDir "${params.outdir}/dada2idseq", mode: 'copy',
 *	 		saveAs: {filename -> 
@@ -651,105 +660,86 @@ if (!params.Q2imported){
 *	 		else null}
 *	  
 *	 	input:
-*		file(ASVtable) from ch_fastq_dada2bimeras.collect()
+*		file(ASVtable) from ch_dada2bimeras.collect()
 *	 
 *	 	output:
 *		file ("dada2.cleaned.merged.bimeras.seqnames.tsv.gz")
-*		file ("*.fna") into ch_fastq_dada2idseq
-*	 	file ("dada2idseq_log") into ch_fastq_dada2idseq_log
+*		file ("*.fna") into ch_dada2idseq
+*	 	file ("dada2idseq_log") into ch_dada2idseq_log
+*
 *	 	script:
 *	 	"""
-*	 	dada2idseq.R --verbose --fnafile=unique_seqs.fna --outtable dada2.cleaned.merged.bimeras.seqnames.tsv.gz \
+*	 	dada2idseq.R --verbose --prefix=${params.prefix} --fnafile=unique_seqs.fna --outtable dada2.cleaned.merged.bimeras.seqnames.tsv.gz \
 *		dada2.cleaned.merged.bimeras.tsv.gz > dada2idseq_log 2>&1
 *		"""
 *	 }
 *
 *	//dada2taxonomy:
-*	process dada2taxonomy  {
+*	if (species == true) {
+*		process dada2taxonomy_species {
 *	
-*	 	publishDir "${params.outdir}/dada2taxonomy", mode: 'copy',
-*	 		saveAs: {filename -> 
-*	 		if (filename.indexOf(".") == -1) "logs/$filename"
-*	 		else if(params.keepIntermediates) filename 
-*	 		else null}
+*	 		publishDir "${params.outdir}/dada2taxonomy", mode: 'copy',
+*	 			saveAs: {filename -> 
+*	 			if (filename.indexOf(".") == -1) "logs/$filename"
+*	 			else if(params.keepIntermediates) filename 
+*	 			else null}
 *	  
-*	 	input:
-*		file(unique_seqs) from ch_fastq_dada2idseq.collect()
+*	 		input:
+*			file(unique_seqs) from ch_dada2idseq.collect()
 *	 
-*	 	output:
-*		file ("*.tsv") into ch_fastq_dada2taxonomy
-*	 	file ("dada2taxonomy_log") into ch_fastq_dada2taxonomy_log
+*			output:
+*			file ("unique_seqs.tsv") into ch_dada2taxonomy_species
+*	 		file ("dada2taxonomy_log") into ch_dada2taxonomy_species_log
 *	 	
-*		when (idtaxa_db == SILVA) {
-*		
-*		script:
-*	 	"""
-*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/SILVA/SILVA_SSU_r132_March2018.RData unique_seqs.fna >> dada2taxonomy_log 2>&1
-*		"""
+*			when (idtaxa == true) {
+*				script:
+*	 			"""
+*	 			dada2taxonomy.R --verbose --idtaxa_rdata=${dbpath}${db}.RData\
+*				--species=${dbpath}${db}.fna unique_seqs.fna >> dada2taxonomy_log 2>&1
+*				"""	
+*	 		}
 *
-*	 } else if (idtaxa_db == GTDB) {
+*			when (rdp == true) {
+*				script:
+*				"""
+*				dada2taxonomy.R --verbose --rdp_fna=${dbpath}${db}.RData\
+*				--species=${dbpath}${db}.fna unique_seqs.fna >> dada2taxonomy_log 2>&1
+*				"""
+*			}
+*		}
+*	}
+*	else {
+*		process dada2taxonomy {
+*	
+*	 		publishDir "${params.outdir}/dada2taxonomy", mode: 'copy',
+*	 			saveAs: {filename -> 
+*	 			if (filename.indexOf(".") == -1) "logs/$filename"
+*	 			else if(params.keepIntermediates) filename 
+*	 			else null}
+*	  
+*	 		input:
+*			file(unique_seqs) from ch_dada2idseq.collect()
+*	 
+*	 		output:
+*			file ("unique_seqs.tsv") into ch_dada2taxonomy
+*	 		file ("dada2taxonomy_log") into ch_dada2taxonomy_log
+*	 	
+*			when (idtaxa == true) {
+*				script:
+*	 			"""
+*	 			dada2taxonomy.R --verbose --idtaxa_rdata=${dbpath}${db}.RData\
+*				--species=${dbpath}${db}.fna unique_seqs.fna >> dada2taxonomy_log 2>&1
+*				"""
+*	 		}
 *
-*		script:
-*	 	"""
-*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/GTDB/GTDB_r89-mod_June2019.RData unique_seqs.fna >> dada2taxonomy_log 2>&1
-*		"""
-*
-*	 } else if (idtaxa_db == UNITE) {
-*		
-*		script:
-*	 	"""
-*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/UNITE/UNITE_v2019_July2019.RData unique_seqs.fna >> dada2taxonomy_log 2>&1
-*		"""
-*	} else if (rdp_db == SILVA) {
-*		
-*		script:
-*	 	"""
-*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/SILVA/silva_nr_v132_train_set.fa.gz unique_seqs.fna >> dada2taxonomy_log 2>&1
-*		"""
-*
-*	 } else if (rdp_db == GTDB) {
-*
-*		script:
-*	 	"""
-*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/GTDB/GTDB_bac-arc_ssu_r86.fa.gz unique_seqs.fna >> dada2taxonomy_log 2>&1
-*		"""
-*
-*	 } else if (idtaxa_db == UNITE) {
-*		
-*		script:
-*	 	"""
-*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/UNITE/UNITE_sh_general_release_02022019.fa unique_seqs.fna >> dada2taxonomy_log 2>&1
-*		"""
-*
-*	 } else if (rdp_db == PR2_18S) {
-*		
-*		script:
-*	 	"""
-*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/PR2/pr2_version_4.12.0_18S_dada2.fasta.gz unique_seqs.fna >> dada2taxonomy_log 2>&1
-*		"""
-*	 } else if (idtaxa_db == PR2_16S) {
-*		
-*		script:
-*	 	"""
-*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/PR2/pr2_version_4.12.0_16S_dada2.fasta.gz unique_seqs.fna >> dada2taxonomy_log 2>&1
-*		"""
-*	} else if (species_db == GTDB) {
-*
-*		script:
-*	 	"""
-*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/GTDB/GTDB_dada2_assignment_species.fa.gz unique_seqs.fna >> dada2taxonomy_log 2>&1
-*		"""
-*
-*	 } else if (idtaxa_db == RDP) {
-*		
-*		script:
-*	 	"""
-*	 	dada2taxonomy.R --verbose idtaxa_rdata /data/RDP/RefSeq-RDP_dada2_assignment_species.fa.gz unique_seqs.fna >> dada2taxonomy_log 2>&1
-*		"""
-*	} else 
-*		error "Invalid taxonomy database name: ${idtaxa_db}"
-*/
-
+*			when (rdp == true) {
+*				script:
+*				"""
+*				dada2taxonomy.R --verbose --rdp_fna=${dbpath}${db}.RData unique_seqs.fna \
+*				--species=${dbpath}${db}.fna >> dada2taxonomy_log 2>&1
+*				"""
+*		}
+*/	}
 
 workflow.onComplete {
 	// from line 1781 of main.nf: On success try attach the multiqc report
