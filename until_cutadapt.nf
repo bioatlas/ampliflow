@@ -238,12 +238,6 @@ process get_software_versions {
 	fastqc --version > v_fastqc.txt
 	multiqc --version > v_multiqc.txt
 	cutadapt --version > v_cutadapt.txt
-	dada2filter.R --version > v_dada2filter.txt
-	dada2errmodels.R --version > v_dada2errmodels.txt
-	dada2cleanNmerge.R --version > v_dada2cleanNmerge.txt
-	dada2bimeras.R --version > v_dada2bimeras.txt
-	dada2idseq.R --version > v_dada2idseq.txt
-	dada2taxonomy.R --version > v_dada2taxonomy.txt
 	scrape_software_versions.py &> software_versions_mqc.yaml
 	"""
 }
@@ -563,8 +557,8 @@ process dada2idseq {
 	 
  	output:
 	file ("dada2.cleaned.merged.bimeras.seqnames.tsv.gz")
-	file ("unique_seqs.fna") into ch_dada2idseq, ch_dada2idseq_2
- 	file ("dada2idseq_log") into ch_dada2idseq_log
+	file ("unique_seqs.fna") into (ch_dada2idseq_rdp, ch_dada2idseq_idtaxa)
+ 	file ("dada2idseq_log") into (ch_dada2idseq_log)
 
  	script:
  	"""
@@ -575,11 +569,12 @@ process dada2idseq {
 
 //dada2taxonomy_rdp:
 
-(ch_dada2idseq, ch_dada2idseq_2) = ( params.skip_taxonomy
-                 ? [Channel.empty(), Channel.empty()]
-                 : [ch_dada2idseq_rdp, ch_dada2idseq_idtaxa] )
 
-when (rdp == true) {
+(ch_dada2idseq_rdp, ch_dada2idseq_idtaxa) = ( params.skip_taxonomy
+                 			  ? [Channel.empty(), Channel.empty()]
+                 			  : [ch_dada2idseq_rdp, ch_dada2idseq_idtaxa] )
+
+if (params.rdp == true) {
 	process dada2taxonomy_rdp {
 
 		publishDir "${params.outdir}/dada2taxonomy", mode: 'copy',
@@ -606,7 +601,7 @@ when (rdp == true) {
 
 //dada2taxonomy_idtaxa
 
-when (idtaxa==true) { 
+if (params.idtaxa==true) { 
 	process dada2taxonomy_idtaxa {
 	
 		publishDir "${params.outdir}/dada2taxonomy", mode: 'copy',
