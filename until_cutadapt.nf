@@ -563,7 +563,7 @@ process dada2idseq {
 	 
  	output:
 	file ("dada2.cleaned.merged.bimeras.seqnames.tsv.gz")
-	file ("unique_seqs.fna") into ch_dada2idseq, ch_dada2idseq_2
+	file ("unique_seqs.fna") into ch_dada2idseq
  	file ("dada2idseq_log") into ch_dada2idseq_log
 
  	script:
@@ -575,11 +575,16 @@ process dada2idseq {
 
 //dada2taxonomy_rdp:
 
-(ch_dada2idseq, ch_dada2idseq_2) = ( params.skip_taxonomy
-                 ? [Channel.empty(), Channel.empty()]
-                 : [ch_dada2idseq_rdp, ch_dada2idseq_idtaxa] )
+if (params.skip_taxonomy) {
+	ch_dada2idseq = Channel.empty()
+} else {
+	ch_dada2idseq
+		.into { ch_dada2idseq_rdp
+			ch_dada2idseq_idtaxa }
+}
 
-when (rdp == true) {
+
+if (params.rdp == true) {
 	process dada2taxonomy_rdp {
 
 		publishDir "${params.outdir}/dada2taxonomy", mode: 'copy',
@@ -606,7 +611,7 @@ when (rdp == true) {
 
 //dada2taxonomy_idtaxa
 
-when (idtaxa==true) { 
+if (params.idtaxa == true) { 
 	process dada2taxonomy_idtaxa {
 	
 		publishDir "${params.outdir}/dada2taxonomy", mode: 'copy',
