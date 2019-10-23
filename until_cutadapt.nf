@@ -238,12 +238,6 @@ process get_software_versions {
 	fastqc --version > v_fastqc.txt
 	multiqc --version > v_multiqc.txt
 	cutadapt --version > v_cutadapt.txt
-	dada2filter.R --version > v_dada2filter.txt
-	dada2errmodels.R --version > v_dada2errmodels.txt
-	dada2cleanNmerge.R --version > v_dada2cleanNmerge.txt
-	dada2bimeras.R --version > v_dada2bimeras.txt
-	dada2idseq.R --version > v_dada2idseq.txt
-	dada2taxonomy.R --version > v_dada2taxonomy.txt
 	scrape_software_versions.py &> software_versions_mqc.yaml
 	"""
 }
@@ -582,7 +576,6 @@ if (params.skip_taxonomy) {
 		.into { ch_dada2idseq_rdp
 			ch_dada2idseq_idtaxa }
 }
-
 
 if (params.rdp == true) {
 	process dada2taxonomy_rdp {
