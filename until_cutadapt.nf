@@ -108,9 +108,9 @@ params.phred64 = false
 params.split = "-"
 
 //Database specific parameters
-params.idtaxa = true
+params.idtaxa = false
 params.rdp = true
-//params.species = true
+params.species = false
 params.dbpath = '/data/taxonomy/'
 params.taxa_db = ''
 
@@ -594,10 +594,10 @@ if (params.rdp == true) {
 		file ("dada2taxonomy_log") into ch_dada2taxonomy_rdp_log
 			
 			script:
-//		speciesDB = params.species ? '--species=${dbpath}${taxa_db}.fna' : ''
+		speciesDB = params.species ? '--species=${dbpath}${taxa_db}_species.fna' : ''
 			"""
 			dada2taxonomy.R --verbose --rdp_fna=${dbpath}${taxa_db}.fna unique_seqs.fna \
-			--species=${dbpath}${taxa_db}_species.fna >> dada2taxonomy_log 2>&1
+			--species=${speciesDB} >> dada2taxonomy_log 2>&1
 			"""
 	}
 }
@@ -621,10 +621,10 @@ if (params.idtaxa == true) {
 		file ("dada2taxonomy_log") into ch_dada2taxonomy_idtaxa_log
 			
 			script:
-//			speciesDB = params.species ? '--species=${dbpath}${taxa_db}.fna' : ''
+		speciesDB = params.species ? '--species=${dbpath}${taxa_db}_species.fna' : ''
 			"""
 			dada2taxonomy.R --verbose --idtaxa_rdata=${dbpath}${taxa_db}.RData\
-			--species=${dbpath}${taxa_db}_species.fna unique_seqs.fna >> dada2taxonomy_log 2>&1
+			--species=${speciesDB} unique_seqs.fna >> dada2taxonomy_log 2>&1
 			"""
 		}
 	}
