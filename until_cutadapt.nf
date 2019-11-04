@@ -442,19 +442,20 @@ process multiqc {
  *(eemis-dada2) [https://github.com/erikrikarddaniel/eemisdada2]
  *dada2filter: quality and length trimming 
  */
-process dada2filter {
+process dada2wf {
 
-	publishDir "${params.outdir}/dada2filter", mode: 'rellink',
+	publishDir "${params.outdir}/dada2wf", mode: 'copy',
 		saveAs: {filename -> 
-		if (filename.indexOf(".gz") == -1) "logs/$filename"
+ 		if (filename.indexOf(".gz") == -1) "logs/$filename"
 		else if(params.keepIntermediates) filename 
 		else null}
 	input:
 	file(reads) from ch_fastq_trimmed.collect()
 
 	output:
-	file "dada2filter/*fastq.gz" into ch_fastq_dada2filter, ch_fastq_dada2filter2
-	file "dada2filter_log" into ch_fastq_dada2filter_log
+	file ("dada2.cleaned.merged.bimeras.seqnames.tsv.gz")
+	file ("unique_seqs.fna") into ch_dada2idseq
+ 	file ("dada2idseq_log") into ch_dada2idseq_log
 
 	script:
 	/*--filterdir: Directory for quality truncated reads, dada2filter will create it if it does not exist.
@@ -464,110 +465,18 @@ process dada2filter {
 	trunclenR1 = params.trunclenF - params.FW_primer.size()
 	trunclenR2 = params.trunclenR - params.RV_primer.size()
 	"""
-	dada2filter.R --verbose --trimleft=0,0 --trunclen=${trunclenR1},${trunclenR2} \
-	--filterdir=dada2filter --fwdmark=${params.fwdmark} --revmark=${params.revmark} \
-	>dada2filter_log 2>&1 
-	"""
-}
-//dada2errmodels: calculation of error models from the data
-        
-process dada2errmodels  {
-
- 	publishDir "${params.outdir}/dada2errmodels", mode: 'rellink',
- 		saveAs: {filename -> 
- 		if (filename.indexOf(".rds") == -1) "logs/$filename"
- 		else if(params.keepIntermediates) filename 
- 		else null}
-  
- 	input:
- 	file(dada2filtered) from ch_fastq_dada2filter.collect()
- 
- 	output:
-	file ("*.rds") into ch_dada2errmodels
- 	file ("dada2errmodels_log") into ch_dada2errmodels_log
-
- 	script:
- 	"""
- 	dada2errmodels.R --verbose --nsamples=${params.nsamples} --maxconsist=${params.maxconsist} \
- 	--filterdir=. --fwdmark=${params.fwdmark} --revmark=${params.revmark} \
- 	>dada2errmodels_log 2>&1
- 	"""
- }
-
-//dada2cleanNmerge: sequence correction and merge
-process dada2cleanNmerge  {
-
- 	publishDir "${params.outdir}/dada2cleanNmerge", mode: 'copy',
- 		saveAs: {filename -> 
- 		if (filename.indexOf(".merged.rds") == -1) "logs/$filename"
- 		else if(params.keepIntermediates) filename 
- 		else null}
-  
- 	input:
- 	file(dada2filtered) from ch_fastq_dada2filter2.collect()
-	file(dada2errmodels) from ch_dada2errmodels.collect()
- 
- 	output:
-	file ("*merged.rds") into ch_dada2cleanNmerge
- 	file ("dada2cleanNmerge_log") into ch_dada2cleanNmerge_log
-
- 	script:
- 	"""
- 	dada2cleanNmerge.R --verbose ${params.concatenate} --filterdir=. \
-	--minoverlap=${params.minoverlap} --maxmismatch=${params.maxmismatch} --fwderrmodel=seq.dada2errmodels.fwd.errorates.rds \
-	--reverrmodel=seq.dada2errmodels.rev.errorates.rds --fwdmark=${params.fwdmark} --revmark=${params.revmark} >dada2cleanNmerge_log 2>&1
- 	"""
- }
-//dada2bimeras: filter bimeras, create the final table
-process dada2bimeras  {
-
- 	publishDir "${params.outdir}/dada2bimeras", mode: 'copy',
- 		saveAs: {filename -> 
- 		if (filename.indexOf(".bimeras.rds") == -1) "logs/$filename"
- 		else if(params.keepIntermediates) filename 
- 		else null}
-  
- 	input:
-	file(dada2cleanNmerged) from ch_dada2cleanNmerge.collect()
- 
- 	output:
-	file ("*bimeras.tsv.gz") into ch_dada2bimeras
- 	file ("dada2bimeras_log") into ch_dada2bimeras_log
-
- 	script:
- 	"""
- 	dada2bimeras.R --verbose --method=${params.method} --minab=${params.minab} --overab=${params.overab} \
-	${params.bimeraoff} --prefix=dada2.cleaned.merged.bimeras --seqtabfile=dada2.cleaned.merged.rds \
-	>dada2bimeras_log 2>&1
-	"""
- }
-/*
- * dada2idseq:
- */
-process dada2idseq {
-	
- 	publishDir "${params.outdir}/dada2idseq", mode: 'copy',
- 		saveAs: {filename -> 
- 		if (filename.indexOf(".seqnames.tsv.gz") == -1) "logs/$filename"
- 		else if(params.keepIntermediates) filename 
- 		else null}
-	  
- 	input:
-	file(ASVtable) from ch_dada2bimeras.collect()
-	 
- 	output:
-	file ("dada2.cleaned.merged.bimeras.seqnames.tsv.gz")
-	file ("unique_seqs.fna") into ch_dada2idseq
- 	file ("dada2idseq_log") into ch_dada2idseq_log
-
- 	script:
- 	"""
- 	dada2idseq.R --verbose --prefix=${params.prefix} --fnafile=unique_seqs.fna --outtable dada2.cleaned.merged.bimeras.seqnames.tsv.gz \
-	dada2.cleaned.merged.bimeras.tsv.gz > dada2idseq_log 2>&1
+	dada2wf.R --verbose --trimleft=0,0 --trunclen=${trunclenR1},${trunclenR2} \
+	--filterdir=. --fwdmark=${params.fwdmark} --revmark=${params.revmark} --errormodelfile_prefix=seq\
+ 	--nsamples=${params.nsamples} --maxconsist=${params.maxconsist} \
+ 	{params.concatenate} --minoverlap=${params.minoverlap} --maxmismatch=${params.maxmismatch} --fwderrmodel=seq.dada2errmodels.fwd.errorates.rds \
+	--reverrmodel=seq.dada2errmodels.rev.errorates.rds \
+ 	--method=${params.method} --minab=${params.minab} --overab=${params.overab} \
+	${params.bimeraoff} --bimerafile_prefix=dada2.cleaned.merged.bimera --mergefile_prefix=dada2.cleaned.merged \
+ 	--seqfile_prefix=${params.seqfile_prefix} --seqprefix=${params.seqprefix} --fnafile=sequences.fna.gz --outtable=asvtable.tsv.gz \
+	dada2.cleaned.merged.bimeras.tsv.gz > dada2wf_log 2>&1
 	"""
  }
 
-//dada2taxonomy_rdp:
 
 if (params.skip_taxonomy) {
 	ch_dada2idseq = Channel.empty()
@@ -577,6 +486,7 @@ if (params.skip_taxonomy) {
 			ch_dada2idseq_idtaxa }
 }
 
+//dada2taxonomy_rdp:
 if (params.rdp == true) {
 	process dada2taxonomy_rdp {
 
@@ -597,7 +507,7 @@ if (params.rdp == true) {
 		speciesDB = params.species ? '--species=${dbpath}${taxa_db}_species.fna' : ''
 			"""
 			dada2taxonomy.R --verbose --rdp_fna=${dbpath}${taxa_db}.fna unique_seqs.fna \
-			--species=${speciesDB} >> dada2taxonomy_log 2>&1
+			${speciesDB} >> dada2taxonomy_log 2>&1
 			"""
 	}
 }
@@ -624,7 +534,7 @@ if (params.idtaxa == true) {
 		speciesDB = params.species ? '--species=${dbpath}${taxa_db}_species.fna' : ''
 			"""
 			dada2taxonomy.R --verbose --idtaxa_rdata=${dbpath}${taxa_db}.RData\
-			--species=${speciesDB} unique_seqs.fna >> dada2taxonomy_log 2>&1
+			${speciesDB} unique_seqs.fna >> dada2taxonomy_log 2>&1
 			"""
 		}
 	}
