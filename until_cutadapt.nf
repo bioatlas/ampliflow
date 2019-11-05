@@ -454,8 +454,8 @@ process dada2wf {
 
 	output:
 	file ("dada2.cleaned.merged.bimeras.seqnames.tsv.gz")
-	file ("unique_seqs.fna") into ch_dada2idseq
- 	file ("dada2idseq_log") into ch_dada2idseq_log
+	file ("sequences.fna.gz") into ch_dada2wf
+ 	file ("dada2wf_log") into ch_dada2wf_log
 
 	script:
 	/*--filterdir: Directory for quality truncated reads, dada2filter will create it if it does not exist.
@@ -466,7 +466,7 @@ process dada2wf {
 	trunclenR2 = params.trunclenR - params.RV_primer.size()
 	"""
 	dada2wf.R --verbose --trimleft=0,0 --trunclen=${trunclenR1},${trunclenR2} \
-	--filterdir=. --fwdmark=${params.fwdmark} --revmark=${params.revmark} --errormodelfile_prefix=seq\
+	--filterdir=filtered --fwdmark=${params.fwdmark} --revmark=${params.revmark} --errormodelfile_prefix=seq\
  	--nsamples=${params.nsamples} --maxconsist=${params.maxconsist} \
  	{params.concatenate} --minoverlap=${params.minoverlap} --maxmismatch=${params.maxmismatch} --fwderrmodel=seq.dada2errmodels.fwd.errorates.rds \
 	--reverrmodel=seq.dada2errmodels.rev.errorates.rds \
@@ -479,11 +479,11 @@ process dada2wf {
 
 
 if (params.skip_taxonomy) {
-	ch_dada2idseq = Channel.empty()
+	ch_dada2wf = Channel.empty()
 } else {
-	ch_dada2idseq
-		.into { ch_dada2idseq_rdp
-			ch_dada2idseq_idtaxa }
+	ch_dada2wf
+		.into { ch_dada2wf_rdp
+			ch_dada2wf_idtaxa }
 }
 
 //dada2taxonomy_rdp:
@@ -497,7 +497,7 @@ if (params.rdp == true) {
 			else null}
 		  
 		input:
-		file(unique_seqs) from ch_dada2idseq_rdp
+		file(unique_seqs) from ch_dada2wf_rdp
 		 
 		output:
 		file ("unique_seqs.tsv") into ch_dada2taxonomy_rdp
@@ -506,7 +506,7 @@ if (params.rdp == true) {
 			script:
 		speciesDB = params.species ? '--species=${dbpath}${taxa_db}_species.fna' : ''
 			"""
-			dada2taxonomy.R --verbose --rdp_fna=${dbpath}${taxa_db}.fna unique_seqs.fna \
+			dada2taxonomy.R --verbose --rdp_fna=${dbpath}${taxa_db}.fna sequences.fna.gz \
 			${speciesDB} >> dada2taxonomy_log 2>&1
 			"""
 	}
@@ -524,7 +524,7 @@ if (params.idtaxa == true) {
 			else null}
 		  
 		input:
-		file(unique_seqs) from ch_dada2idseq_idtaxa
+		file(unique_seqs) from ch_dada2wf_idtaxa
 		 
 		output:
 		file ("unique_seqs.tsv") into ch_dada2taxonomy_idtaxa
@@ -534,7 +534,7 @@ if (params.idtaxa == true) {
 		speciesDB = params.species ? '--species=${dbpath}${taxa_db}_species.fna' : ''
 			"""
 			dada2taxonomy.R --verbose --idtaxa_rdata=${dbpath}${taxa_db}.RData\
-			${speciesDB} unique_seqs.fna >> dada2taxonomy_log 2>&1
+			${speciesDB} sequences.fna.gz >> dada2taxonomy_log 2>&1
 			"""
 		}
 	}
