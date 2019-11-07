@@ -468,7 +468,7 @@ process dada2wf {
 	dada2wf.R --verbose --trimleft=0,0 --trunclen=${trunclenR1},${trunclenR2} \
 	--filterdir=filtered --fwdmark=${params.fwdmark} --revmark=${params.revmark} --errormodelfile_prefix=seq\
  	--nsamples=${params.nsamples} --maxconsist=${params.maxconsist} \
- 	{params.concatenate} --minoverlap=${params.minoverlap} --maxmismatch=${params.maxmismatch} --fwderrmodel=seq.dada2errmodels.fwd.errorates.rds \
+ 	${params.concatenate} --minoverlap=${params.minoverlap} --maxmismatch=${params.maxmismatch} --fwderrmodel=seq.dada2errmodels.fwd.errorates.rds \
 	--reverrmodel=seq.dada2errmodels.rev.errorates.rds \
  	--method=${params.method} --minab=${params.minab} --overab=${params.overab} \
 	${params.bimeraoff} --bimerafile_prefix=dada2.cleaned.merged.bimera --mergefile_prefix=dada2.cleaned.merged \
