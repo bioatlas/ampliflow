@@ -453,7 +453,7 @@ process dada2wf {
 	file(reads) from ch_fastq_trimmed.collect()
 
 	output:
-	file ("dada2.cleaned.merged.bimeras.seqnames.tsv.gz")
+	file ("asvtable.tsv.gz")
 	file ("sequences.fna.gz") into ch_dada2wf
  	file ("dada2wf_log") into ch_dada2wf_log
 
