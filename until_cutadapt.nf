@@ -504,9 +504,9 @@ if (params.rdp == true) {
 		file ("dada2taxonomy_log") into ch_dada2taxonomy_rdp_log
 			
 			script:
-		speciesDB = params.species ? '--species=${dbpath}${taxa_db}_species.fna' : ''
+		speciesDB = params.species ? '--species=${params.dbpath}${taxa_db}_species.fna' : ''
 			"""
-			dada2taxonomy.R --verbose --rdp_fna=${dbpath}${taxa_db}.fna sequences.fna.gz \
+			dada2taxonomy.R --verbose --rdp_fna=${params.dbpath}${taxa_db}.fna sequences.fna.gz \
 			${speciesDB} >> dada2taxonomy_log 2>&1
 			"""
 	}
@@ -531,9 +531,9 @@ if (params.idtaxa == true) {
 		file ("dada2taxonomy_log") into ch_dada2taxonomy_idtaxa_log
 			
 			script:
-		speciesDB = params.species ? '--species=${dbpath}${taxa_db}_species.fna' : ''
+		speciesDB = params.species ? '--species=${params.dbpath}${taxa_db}_species.fna' : ''
 			"""
-			dada2taxonomy.R --verbose --idtaxa_rdata=${dbpath}${taxa_db}.RData\
+			dada2taxonomy.R --verbose --idtaxa_rdata=${params.dbpath}${taxa_db}.RData\
 			${speciesDB} sequences.fna.gz >> dada2taxonomy_log 2>&1
 			"""
 		}
