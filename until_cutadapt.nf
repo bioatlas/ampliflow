@@ -466,7 +466,7 @@ process dada2wf {
 	trunclenR2 = params.trunclenR - params.RV_primer.size()
 	"""
 	dada2wf.R --verbose --trimleft=0,0 --trunclen=${trunclenR1},${trunclenR2} \
-	--filterdir=. --fwdmark=${params.fwdmark} --revmark=${params.revmark} --errormodelfile_prefix=seq\
+	--filterdir=filtered --fwdmark=${params.fwdmark} --revmark=${params.revmark} --errormodelfile_prefix=seq\
  	--nsamples=${params.nsamples} --maxconsist=${params.maxconsist} \
  	{params.concatenate} --minoverlap=${params.minoverlap} --maxmismatch=${params.maxmismatch} --fwderrmodel=seq.dada2errmodels.fwd.errorates.rds \
 	--reverrmodel=seq.dada2errmodels.rev.errorates.rds \
@@ -504,9 +504,9 @@ if (params.rdp == true) {
 		file ("dada2taxonomy_log") into ch_dada2taxonomy_rdp_log
 			
 			script:
-		speciesDB = params.species ? '--species=${dbpath}${taxa_db}_species.fna' : ''
+		speciesDB = params.species ? '--species=${dbpath}${taxa_db}_species.fna.gz' : ''
 			"""
-			dada2taxonomy.R --verbose --rdp_fna=${dbpath}${taxa_db}.fna unique_seqs.fna \
+			dada2taxonomy.R --verbose --rdp_fna=${dbpath}${taxa_db}.fna.gz unique_seqs.fna \
 			${speciesDB} >> dada2taxonomy_log 2>&1
 			"""
 	}
@@ -531,7 +531,7 @@ if (params.idtaxa == true) {
 		file ("dada2taxonomy_log") into ch_dada2taxonomy_idtaxa_log
 			
 			script:
-		speciesDB = params.species ? '--species=${dbpath}${taxa_db}_species.fna' : ''
+		speciesDB = params.species ? '--species=${dbpath}${taxa_db}_species.fna.gz' : ''
 			"""
 			dada2taxonomy.R --verbose --idtaxa_rdata=${dbpath}${taxa_db}.RData\
 			${speciesDB} unique_seqs.fna >> dada2taxonomy_log 2>&1
